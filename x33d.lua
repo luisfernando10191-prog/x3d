@@ -90,7 +90,7 @@ Panel
     anchors.left: parent.left
     text-align: center
     width: 130
-    text: Target/Team
+    text: enemyfinal
     $on:
       color: ]] .. corText .. [[
     $!on:
@@ -499,14 +499,14 @@ macro(100, function()
     if isInPz() then return end
 
     local pos = player:getPosition()
-    local myName = player:getName():lower():trim() -- Pega o seu nick atual dinamicamente
+    local myName = player:getName():lower():trim() 
     local actualTarget, actualTargetHp = nil, nil
     local allowedDistance = config.maxDistance or 6
     
     local listaAlvo = config.currentMode == "Enemy Priority" and enemyList or teamList
     
     for _, targetName in ipairs(listaAlvo) do
-        -- Se o nick da lista for igual ao seu próprio nome de jogador, ele pula e não ataca!
+
         if targetName ~= myName then
             for _, creature in ipairs(getSpectators(pos)) do
                 local specHp = creature:getHealthPercent()
