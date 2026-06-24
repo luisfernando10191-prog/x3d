@@ -205,7 +205,7 @@ MainWindow
       
       Label
         id: urlLabel
-        text: Link da Lista Cloud (Pastebin / Gist RAW):
+        text: Link da Lista
         anchors.top: parent.top
         anchors.left: parent.left
         text-auto-resize: true
