@@ -80,7 +80,7 @@ enemyCaster.window = setupUI([[
 MainWindow
   id: enemyWindow
   size: 550 340
-  text: ENEMY BY LUIZ (PROFILES)
+  text: ENEMY BY LUIZ
 
   Panel
     id: mainPanel
