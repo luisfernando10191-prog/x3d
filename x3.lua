@@ -27,7 +27,7 @@ Panel
   height: 80      
   width: 210      
   margin-top: 38    
-  margin-left: 850    
+  margin-left: 250   
   anchors.top: parent.top      
   anchors.left: parent.left      
   background-color: #11111166  
