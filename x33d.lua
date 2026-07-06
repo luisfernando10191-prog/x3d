@@ -232,7 +232,7 @@ MainWindow
 
     Button
       id: addButton
-      text: Adicionar Base
+      text: Adicionar Jogador
       anchors.left: playerNameInput.left
       anchors.top: moveUp.bottom
       margin-top: 15
