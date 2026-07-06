@@ -9,16 +9,16 @@ local worldName = g_game.getWorldName()
 if not characterName or not worldName then return end
 
 -- ================================================================
--- LIMPEZA DE EXECUÇÕES ANTERIORES
+-- LIMPEZA DE EXECUÇÕES ANTERIORES (evita widgets/macros duplicados)
+-- Isso é o que causava o crash silencioso: toda vez que o bot é
+-- ligado, este arquivo inteiro é baixado e reexecutado. Sem essa
+-- limpeza, criávamos uma nova janela/painel/macro por cima dos
+-- antigos, com os mesmos IDs, corrompendo a árvore de UI do client.
 -- ================================================================
+
 if enemyCaster.macroEvent then
     pcall(function() removeEvent(enemyCaster.macroEvent) end)
     enemyCaster.macroEvent = nil
-end
-
-if enemyCaster.delayedLoadEvent then
-    pcall(function() removeEvent(enemyCaster.delayedLoadEvent) end)
-    enemyCaster.delayedLoadEvent = nil
 end
 
 if enemyCaster.window then
@@ -31,12 +31,13 @@ if enemyCaster.uiPanel then
     enemyCaster.uiPanel = nil
 end
 
--- Inicialização do Storage
+-- Inicialização Limpa e Segura do Storage (Garante caminhos isolados)
 storage.enemyConfig = storage.enemyConfig or {}
 storage.enemyConfig[worldName] = storage.enemyConfig[worldName] or {}
 storage.enemyConfig[worldName][characterName] = storage.enemyConfig[worldName][characterName] or {}
 local config = storage.enemyConfig[worldName][characterName]
 
+-- Atribuição de valores brutos (Sem persistência direta de funções/ponteiros)
 config.macroActive = (config.macroActive == nil) and true or config.macroActive
 config.maxDistance = config.maxDistance or 6
 config.currentMode = config.currentMode or "Enemy Priority"
@@ -108,11 +109,7 @@ local function updateInternalLists()
     end
 end
 
--- ================================================================
--- CARREGAMENTO DA INTERFACE E MACROS
--- ================================================================
-local function carregarTudo()
-    local corText = '#FFFFFF'
+local corText = '#FFFFFF'
     local ui = setupUI([[
 Panel
   height: 19
@@ -591,13 +588,3 @@ UIWidget
             end
         end
     end)
-end
-
--- Usa o cycleEvent nativo do bot para aguardar 300ms de forma segura e injetar o script sem crashar
-enemyCaster.delayedLoadEvent = cycleEvent(function()
-    carregarTudo()
-    if enemyCaster.delayedLoadEvent then
-        removeEvent(enemyCaster.delayedLoadEvent)
-        enemyCaster.delayedLoadEvent = nil
-    end
-end, 300)
