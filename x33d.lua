@@ -10,12 +10,7 @@ if not characterName or not worldName then return end
 
 -- ================================================================
 -- LIMPEZA DE EXECUÇÕES ANTERIORES (evita widgets/macros duplicados)
--- Isso é o que causava o crash silencioso: toda vez que o bot é
--- ligado, este arquivo inteiro é baixado e reexecutado. Sem essa
--- limpeza, criávamos uma nova janela/painel/macro por cima dos
--- antigos, com os mesmos IDs, corrompendo a árvore de UI do client.
 -- ================================================================
-
 if enemyCaster.macroEvent then
     pcall(function() removeEvent(enemyCaster.macroEvent) end)
     enemyCaster.macroEvent = nil
@@ -31,13 +26,12 @@ if enemyCaster.uiPanel then
     enemyCaster.uiPanel = nil
 end
 
--- Inicialização Limpa e Segura do Storage (Garante caminhos isolados)
+-- Inicialização Limpa e Segura do Storage
 storage.enemyConfig = storage.enemyConfig or {}
 storage.enemyConfig[worldName] = storage.enemyConfig[worldName] or {}
 storage.enemyConfig[worldName][characterName] = storage.enemyConfig[worldName][characterName] or {}
 local config = storage.enemyConfig[worldName][characterName]
 
--- Atribuição de valores brutos (Sem persistência direta de funções/ponteiros)
 config.macroActive = (config.macroActive == nil) and true or config.macroActive
 config.maxDistance = config.maxDistance or 6
 config.currentMode = config.currentMode or "Enemy Priority"
@@ -110,14 +104,9 @@ local function updateInternalLists()
 end
 
 -- ================================================================
--- Toda a criação de UI e o macro ficam dentro de um scheduleEvent
--- com pequeno atraso. Isso evita o crash que acontecia quando o
--- bot era ligado logo após abrir o jogo, momento em que mainTab /
--- g_ui podem ainda não estar totalmente prontos para receber
--- setupUI.
+-- INICIALIZAÇÃO VIA FUNÇÃO SEGURO COM DELAY NATIVO DO BOT
 -- ================================================================
-scheduleEvent(function()
-
+local function carregarTudo()
     local corText = '#FFFFFF'
     local ui = setupUI([[
 Panel
@@ -597,5 +586,13 @@ UIWidget
             end
         end
     end)
+end
 
-end, 300)
+-- Usa uma macro de carregamento temporária (Padrão VBot/CandyBot) para aplicar o delay de 300ms de forma nativa e segura
+local tempoInicial = os.mtime()
+macro(50, function(m)
+    if os.mtime() - tempoInicial >= 300 then
+        carregarTudo()
+        m.stop()
+    end
+end)
