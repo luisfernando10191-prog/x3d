@@ -1,24 +1,21 @@
--- Tabelas globais limpas
 enemyCaster = enemyCaster or {}
 enemyList = {}
 teamList = {}
 
--- Para o script imediatamente se for carregado na tela de login
 if not g_game or not g_game.isOnline() then return end
 
 local characterName = g_game.getCharacterName()
 local worldName = g_game.getWorldName()
 if not characterName or not worldName then return end
 
--- Inicialização segura do Storage
+-- Inicialização Limpa e Segura do Storage (Garante caminhos isolados)
 storage.enemyConfig = storage.enemyConfig or {}
 storage.enemyConfig[worldName] = storage.enemyConfig[worldName] or {}
 storage.enemyConfig[worldName][characterName] = storage.enemyConfig[worldName][characterName] or {}
 local config = storage.enemyConfig[worldName][characterName]
 
--- Configurações padrão
-if config.macroActive == nil then config.macroActive = true end
-if config.teamMacroActive == nil then config.teamMacroActive = false end
+-- Atribuição de valores brutos (Sem persistência direta de funções/ponteiros)
+config.macroActive = (config.macroActive == nil) and true or config.macroActive
 config.maxDistance = config.maxDistance or 6
 config.currentMode = config.currentMode or "Enemy Priority"
 config.enemies = config.enemies or {}
@@ -26,9 +23,9 @@ config.team = config.team or {}
 
 local INIMIGOS_BASE = {
     "S A S K H E", "B L A S P H E M O U S", "N E A Rmx", "Demon Blessed",
-    "B O C H I T A", "A n G eL JeS", "D R A K A R", "HALL DEMON",
-    "S E P H I R O T H", "C R I S T I A N", "T u v i s i c a", "G aa P",
-    "And Do SuMiDaO", "D a N", "H A Y A M I", "J O S S E"
+    "B O C H I T A", "B R O K E N HeArT", "D R A K A R", "HALL DEMON",
+    "S E P H I R O T H", "C R I S T I A N", "J O S S E", "G aa P",
+    "And Do SuMiDaO", "D a N", "H A Y A M I", "T u v i s i c a"
 }
 
 local TEAM_BASE = {
@@ -60,7 +57,7 @@ function getSortedList()
     local t = getActiveTable()
     if not t then return sorted end
     for name, data in pairs(t) do
-        if name and data then table.insert(sorted, { name = name, data = data }) end
+        if name and data then table.insert(sorted, { name = name, data = { enabled = data.enabled, index = data.index } }) end
     end
     table.sort(sorted, function(a, b) return (a.data.index or 0) < (b.data.index or 0) end)
     return sorted
@@ -69,10 +66,9 @@ end
 local function updateInternalLists()
     enemyList = {}
     teamList = {}
-    if not config.enemies or not config.team then return end
     
     local sortedEnemies = {}
-    for name, data in pairs(config.enemies) do 
+    for name, data in pairs(config.enemies or {}) do 
         if name and data then table.insert(sortedEnemies, {name=name, data=data}) end 
     end
     table.sort(sortedEnemies, function(a,b) return (a.data.index or 0) < (b.data.index or 0) end)
@@ -81,7 +77,7 @@ local function updateInternalLists()
     end
 
     local sortedTeam = {}
-    for name, data in pairs(config.team) do 
+    for name, data in pairs(config.team or {}) do 
         if name and data then table.insert(sortedTeam, {name=name, data=data}) end 
     end
     table.sort(sortedTeam, function(a,b) return (a.data.index or 0) < (b.data.index or 0) end)
@@ -90,16 +86,8 @@ local function updateInternalLists()
     end
 end
 
-local ui, mainPanel, enemyTextList, codePanel, comboMode
-local interfaceCarregada = false
-
--- FUNÇÃO QUE CONSTRÓI A INTERFACE COM SEGURANÇA
-local function inicializarInterfaceSegura()
-    if interfaceCarregada then return end
-    interfaceCarregada = true
-
-    local corText = '#FFFFFF'
-    ui = setupUI([[
+local corText = '#FFFFFF'
+local ui = setupUI([[
 Panel
   height: 19
   BotSwitch
@@ -123,7 +111,7 @@ Panel
     text: Setup
 ]], mainTab)
 
-    enemyCaster.window = setupUI([[
+enemyCaster.window = setupUI([[
 MainWindow
   id: enemyWindow
   size: 550 350
@@ -235,7 +223,7 @@ MainWindow
 
     Button
       id: addButton
-      text: Adicionar Jogador
+      text: Adicionar Base
       anchors.left: playerNameInput.left
       anchors.top: moveUp.bottom
       margin-top: 15
@@ -291,32 +279,31 @@ MainWindow
     height: 25
 ]], g_ui.getRootWidget())
 
-    enemyCaster.window:hide()
+enemyCaster.window:hide()
 
-    mainPanel = enemyCaster.window:getChildById('mainPanel')
-    enemyTextList = mainPanel:getChildById('enemyTextList')
-    codePanel = mainPanel:getChildById('codePanel')
-    comboMode = mainPanel:getChildById('configList')
+local mainPanel = enemyCaster.window:getChildById('mainPanel')
+local enemyTextList = mainPanel:getChildById('enemyTextList')
+local codePanel = mainPanel:getChildById('codePanel')
+local comboMode = mainPanel:getChildById('configList')
 
-    comboMode:addOption("Enemy Priority")
-    comboMode:addOption("Team Priority")
-    comboMode:setCurrentOption(config.currentMode)
+comboMode:addOption("Enemy Priority")
+comboMode:addOption("Team Priority")
+comboMode:setCurrentOption(config.currentMode)
 
-    mainPanel:getChildById('distInput'):setText(tostring(config.maxDistance))
+mainPanel:getChildById('distInput'):setText(tostring(config.maxDistance))
 
-    function enemyCaster.refreshList()
-        if not enemyTextList then return end
-        local focusedChild = enemyTextList:getFocusedChild()
-        local focusedNick = focusedChild and focusedChild.nickName or nil
+function enemyCaster.refreshList()
+    local focusedChild = enemyTextList:getFocusedChild()
+    local focusedNick = focusedChild and focusedChild.nickName or nil
 
-        enemyTextList:destroyChildren()
-        local sorted = getSortedList()
-        
-        for _, item in ipairs(sorted) do
-            local enemyName = item.name
-            local data = item.data
+    enemyTextList:destroyChildren()
+    local sorted = getSortedList()
+    
+    for _, item in ipairs(sorted) do
+        local enemyName = item.name
+        local data = item.data
 
-            local itemWidget = setupUI([[
+        local itemWidget = setupUI([[
 UIWidget
   height: 22
   margin-top: 2
@@ -348,175 +335,171 @@ UIWidget
     anchors.verticalCenter: parent.verticalCenter
     margin-right: 18
 ]], enemyTextList)
-            
-            itemWidget.nickName = enemyName
-            itemWidget.nickLabel:setText(enemyName)
-            itemWidget.enabled:setChecked(data.enabled)
-            
-            itemWidget.enabled.onCheckChange = function(cb, checked)
-                local t = getActiveTable()
-                if t and t[enemyName] then t[enemyName].enabled = checked end
-                updateInternalLists()
-            end
-            
-            itemWidget.remove.onClick = function()
-                local t = getActiveTable()
-                if t then t[enemyName] = nil end
-                updateInternalLists()
-                enemyCaster.refreshList()
-            end
-
-            itemWidget.onClick = function() enemyTextList:focusChild(itemWidget) end
-            if focusedNick == enemyName then enemyTextList:focusChild(itemWidget) end
-        end
-    end
-
-    comboMode.onOptionChange = function(widget, option)
-        config.currentMode = option
-        codePanel:getChildById('codeInput'):setText("")
-        enemyCaster.refreshList()
-    end
-
-    local function gerarNumeroOrdem()
-        local sorted = getSortedList()
-        local base = getActiveBase()
-        local orderStr = ""
-        for _, item in ipairs(sorted) do
-            for baseIdx, baseName in ipairs(base) do
-                if item.name == baseName then
-                    orderStr = orderStr .. string.format("%02d", baseIdx)
-                    break
-                end
-            end
-        end
-        codePanel:getChildById('codeInput'):setText(orderStr)
-    end
-
-    local function aplicarNumeroOrdem(codigo)
-        codigo = codigo:trim()
-        if codigo:len() == 0 or (codigo:len() % 2 ~= 0) then return end
         
-        local base = getActiveBase()
-        if config.currentMode == "Enemy Priority" then config.enemies = {} else config.team = {} end
-        local t = getActiveTable()
+        itemWidget.nickName = enemyName
+        itemWidget.nickLabel:setText(enemyName)
+        itemWidget.enabled:setChecked(data.enabled)
         
-        local currentIdx = 1
-        for i = 1, codigo:len(), 2 do
-            local baseIdx = tonumber(codigo:sub(i, i+1))
-            if baseIdx and base[baseIdx] then
-                local name = base[baseIdx]
-                t[name] = { enabled = true, index = currentIdx }
-                currentIdx = currentIdx + 1
-            end
-        end
-        
-        updateInternalLists()
-        enemyCaster.refreshList()
-    end
-
-    codePanel:getChildById('generateButton').onClick = function() gerarNumeroOrdem() end
-    codePanel:getChildById('applyButton').onClick = function()
-        local codigo = codePanel:getChildById('codeInput'):getText()
-        aplicarNumeroOrdem(codigo)
-    end
-
-    local function changeNickOrder(offset)
-        local child = enemyTextList:getFocusedChild()
-        if not child then return end
-        
-        local currentNick = child.nickName
-        local sorted = getSortedList()
-        local currentIndex = nil
-        for i, item in ipairs(sorted) do
-            if item.name == currentNick then currentIndex = i; break end
-        end
-        if not currentIndex then return end
-        
-        local targetIndex = currentIndex + offset
-        if targetIndex >= 1 and targetIndex <= #sorted then
-            local currentData = sorted[currentIndex].data
-            local targetData = sorted[targetIndex].data
-            local tempIndex = currentData.index
-            currentData.index = targetData.index
-            targetData.index = tempIndex
-            
-            updateInternalLists()
-            enemyCaster.refreshList()
-        end
-    end
-
-    mainPanel:getChildById('moveUp').onClick = function() changeNickOrder(-1) end
-    mainPanel:getChildById('moveDown').onClick = function() changeNickOrder(1) end
-
-    mainPanel:getChildById('addButton').onClick = function()
-        local nick = mainPanel:getChildById('playerNameInput'):getText():trim()
-        if nick:len() > 0 then
-            local base = getActiveBase()
+        itemWidget.enabled.onCheckChange = function(cb, checked)
             local t = getActiveTable()
-            local encontrado = false
-            for _, v in ipairs(base) do
-                if v:lower() == nick:lower() then encontrado = true; nick = v; break end
+            if t and t[enemyName] then 
+                t[enemyName].enabled = checked 
             end
-            if not encontrado then table.insert(base, nick) end
-
-            local maxIndex = 0
-            for _, data in pairs(t) do
-                if data.index and data.index > maxIndex then maxIndex = data.index end
+            updateInternalLists()
+        end
+        
+        itemWidget.remove.onClick = function()
+            local t = getActiveTable()
+            if t then 
+                t[enemyName] = nil 
             end
-            
-            t[nick] = { enabled = true, index = maxIndex + 1 }
-            mainPanel:getChildById('playerNameInput'):setText('')
             updateInternalLists()
             enemyCaster.refreshList()
         end
-    end
 
-    mainPanel:getChildById('distUp').onClick = function()
-        local current = tonumber(mainPanel:getChildById('distInput'):getText()) or 6
-        if current < 15 then
-            config.maxDistance = current + 1
-            mainPanel:getChildById('distInput'):setText(tostring(config.maxDistance))
+        itemWidget.onClick = function() enemyTextList:focusChild(itemWidget) end
+        if focusedNick == enemyName then enemyTextList:focusChild(itemWidget) end
+    end
+end
+
+comboMode.onOptionChange = function(widget, option)
+    config.currentMode = option
+    codePanel:getChildById('codeInput'):setText("")
+    enemyCaster.refreshList()
+end
+
+local function gerarNumeroOrdem()
+    local sorted = getSortedList()
+    local base = getActiveBase()
+    local orderStr = ""
+    for _, item in ipairs(sorted) do
+        for baseIdx, baseName in ipairs(base) do
+            if item.name == baseName then
+                orderStr = orderStr .. string.format("%02d", baseIdx)
+                break
+            end
         end
     end
+    codePanel:getChildById('codeInput'):setText(orderStr)
+end
 
-    mainPanel:getChildById('distDown').onClick = function()
-        local current = tonumber(mainPanel:getChildById('distInput'):getText()) or 6
-        if current > 1 then
-            config.maxDistance = current - 1
-            mainPanel:getChildById('distInput'):setText(tostring(config.maxDistance))
+local function aplicarNumeroOrdem(codigo)
+    codigo = codigo:trim()
+    if codigo:len() == 0 or (codigo:len() % 2 ~= 0) then return end
+    
+    local base = getActiveBase()
+    
+    if config.currentMode == "Enemy Priority" then config.enemies = {} else config.team = {} end
+    local t = getActiveTable()
+    
+    local currentIdx = 1
+    for i = 1, codigo:len(), 2 do
+        local baseIdx = tonumber(codigo:sub(i, i+1))
+        if baseIdx and base[baseIdx] then
+            local name = base[baseIdx]
+            t[name] = { enabled = true, index = currentIdx }
+            currentIdx = currentIdx + 1
         end
     end
-
-    ui.push.onClick = function()
-        if enemyCaster.window then
-            enemyCaster.window:show(); enemyCaster.window:raise(); enemyCaster.window:focus()
-        end
-    end
-
-    ui.title:setOn(config.macroActive)
-    ui.title.onClick = function(widget)
-        config.macroActive = not config.macroActive
-        widget:setOn(config.macroActive)
-    end
-
-    local closeBtn = enemyCaster.window:getChildById('closeButton')
-    if closeBtn then closeBtn.onClick = function() enemyCaster.window:hide() end end
-
+    
     updateInternalLists()
     enemyCaster.refreshList()
 end
 
--- CARREGADOR SEGURO UNIVERSAL: Roda uma única vez
-local inicializado = false
-macro(100, function()
-    if inicializado then return end
-    inicializarInterfaceSegura()
-    inicializado = true
-end)
+codePanel:getChildById('generateButton').onClick = function() gerarNumeroOrdem() end
+codePanel:getChildById('applyButton').onClick = function()
+    local codigo = codePanel:getChildById('codeInput'):getText()
+    aplicarNumeroOrdem(codigo)
+end
 
--- MACRO PRINCIPAL DE ATAQUE
+local function changeNickOrder(offset)
+    local child = enemyTextList:getFocusedChild()
+    if not child then return end
+    
+    local currentNick = child.nickName
+    local sorted = getSortedList()
+    
+    local currentIndex = nil
+    for i, item in ipairs(sorted) do
+        if item.name == currentNick then currentIndex = i; break end
+    end
+    if not currentIndex then return end
+    
+    local targetIndex = currentIndex + offset
+    if targetIndex >= 1 and targetIndex <= #sorted then
+        local currentData = sorted[currentIndex].data
+        local targetData = sorted[targetIndex].data
+        
+        local tempIndex = currentData.index
+        currentData.index = targetData.index
+        targetData.index = tempIndex
+        
+        updateInternalLists()
+        enemyCaster.refreshList()
+    end
+end
+
+mainPanel:getChildById('moveUp').onClick = function() changeNickOrder(-1) end
+mainPanel:getChildById('moveDown').onClick = function() changeNickOrder(1) end
+
+mainPanel:getChildById('addButton').onClick = function()
+    local nick = mainPanel:getChildById('playerNameInput'):getText():trim()
+    if nick:len() > 0 then
+        local base = getActiveBase()
+        local t = getActiveTable()
+        
+        local encontrado = false
+        for _, v in ipairs(base) do
+            if v:lower() == nick:lower() then encontrado = true; nick = v; break end
+        end
+        if not encontrado then table.insert(base, nick) end
+
+        local maxIndex = 0
+        for _, data in pairs(t) do
+            if data.index and data.index > maxIndex then maxIndex = data.index end
+        end
+        
+        t[nick] = { enabled = true, index = maxIndex + 1 }
+        mainPanel:getChildById('playerNameInput'):setText('')
+        updateInternalLists()
+        enemyCaster.refreshList()
+    end
+end
+
+mainPanel:getChildById('distUp').onClick = function()
+    local current = tonumber(mainPanel:getChildById('distInput'):getText()) or 6
+    if current < 15 then
+        config.maxDistance = current + 1
+        mainPanel:getChildById('distInput'):setText(tostring(config.maxDistance))
+    end
+end
+
+mainPanel:getChildById('distDown').onClick = function()
+    local current = tonumber(mainPanel:getChildById('distInput'):getText()) or 6
+    if current > 1 then
+        config.maxDistance = current - 1
+        mainPanel:getChildById('distInput'):setText(tostring(config.maxDistance))
+    end
+end
+
+ui.push.onClick = function()
+    enemyCaster.window:show(); enemyCaster.window:raise(); enemyCaster.window:focus()
+end
+
+ui.title:setOn(config.macroActive)
+ui.title.onClick = function(widget)
+    config.macroActive = not config.macroActive
+    widget:setOn(config.macroActive)
+end
+
+local closeBtn = enemyCaster.window:getChildById('closeButton')
+if closeBtn then closeBtn.onClick = function() enemyCaster.window:hide() end end
+
+updateInternalLists()
+enemyCaster.refreshList()
+
 macro(100, function()
-    if not interfaceCarregada or not config or not config.macroActive then return end
+    if not config.macroActive then return end
     if isInPz and isInPz() then return end
 
     local localPlayer = g_game.getLocalPlayer()
@@ -531,7 +514,8 @@ macro(100, function()
     
     local allowedDistance = config.maxDistance or 6
     local listaAlvo = config.currentMode == "Enemy Priority" and enemyList or teamList
-    if not listaAlvo or #listaAlvo == 0 then return end
+    
+    if #listaAlvo == 0 then return end
 
     local spectators = getSpectators(pos)
     if not spectators or #spectators == 0 then return end
@@ -554,18 +538,17 @@ macro(100, function()
     end
 
     local actualTarget, actualTargetHp = nil, nil
+
     for _, targetName in ipairs(listaAlvo) do
-        if targetName then
-            local creature = visiblePlayers[targetName]
-            if creature and tostring(creature) ~= "userdata: NULL" then
-                local cPos = creature:getPosition()
-                if cPos and getDistanceBetween(pos, cPos) <= allowedDistance then
-                    local canShootSuccess, canShoot = pcall(function() return creature:canShoot() end)
-                    if canShootSuccess and canShoot then
-                        local specHp = creature:getHealthPercent() or 100
-                        if not actualTarget or actualTargetHp > specHp then
-                            actualTarget, actualTargetHp = creature, specHp
-                        end
+        local creature = visiblePlayers[targetName]
+        if creature and tostring(creature) ~= "userdata: NULL" then
+            local cPos = creature:getPosition()
+            if cPos and getDistanceBetween(pos, cPos) <= allowedDistance then
+                local canShootSuccess, canShoot = pcall(function() return creature:canShoot() end)
+                if canShootSuccess and canShoot then
+                    local specHp = creature:getHealthPercent() or 100
+                    if not actualTarget or actualTargetHp > specHp then
+                        actualTarget, actualTargetHp = creature, specHp
                     end
                 end
             end
