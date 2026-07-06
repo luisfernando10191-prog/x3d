@@ -26,9 +26,9 @@ config.team = config.team or {}
 
 local INIMIGOS_BASE = {
     "S A S K H E", "B L A S P H E M O U S", "N E A Rmx", "Demon Blessed",
-    "B O C H I T A", "B R O K E N HeArT", "D R A K A R", "HALL DEMON",
-    "S E P H I R O T H", "C R I S T I A N", "J O S S E", "G aa P",
-    "And Do SuMiDaO", "D a N", "H A Y A M I", "T u v i s i c a"
+    "B O C H I T A", "A n G eL JeS", "D R A K A R", "HALL DEMON",
+    "S E P H I R O T H", "C R I S T I A N", "T u v i s i c a", "G aa P",
+    "And Do SuMiDaO", "D a N", "H A Y A M I", "J O S S E"
 }
 
 local TEAM_BASE = {
@@ -90,11 +90,14 @@ local function updateInternalLists()
     end
 end
 
--- Variáveis locais de UI vazias (serão populadas de forma assíncrona)
 local ui, mainPanel, enemyTextList, codePanel, comboMode
+local interfaceCarregada = false
 
--- FUNÇÃO QUE CONSTRÓI A INTERFACE COM SEGURANÇA ATRASADA
+-- FUNÇÃO QUE CONSTRÓI A INTERFACE COM SEGURANÇA
 local function inicializarInterfaceSegura()
+    if interfaceCarregada then return end
+    interfaceCarregada = true
+
     local corText = '#FFFFFF'
     ui = setupUI([[
 Panel
@@ -301,7 +304,6 @@ MainWindow
 
     mainPanel:getChildById('distInput'):setText(tostring(config.maxDistance))
 
-    -- Define a função de refresh
     function enemyCaster.refreshList()
         if not enemyTextList then return end
         local focusedChild = enemyTextList:getFocusedChild()
@@ -494,7 +496,7 @@ UIWidget
     ui.title:setOn(config.macroActive)
     ui.title.onClick = function(widget)
         config.macroActive = not config.macroActive
-        scheduleEvent(function() widget:setOn(config.macroActive) end, 50)
+        widget:setOn(config.macroActive)
     end
 
     local closeBtn = enemyCaster.window:getChildById('closeButton')
@@ -504,14 +506,19 @@ UIWidget
     enemyCaster.refreshList()
 end
 
--- AGENDA A CRIAÇÃO DE TUDO PARA DAQUI A 800 MILISSEGUNDOS (DÁ TEMPO DA ENGINE RESPIRAR)
-scheduleEvent(function()
-    inicializarInterfaceSegura()
-end, 800)
+-- CARREGADOR SEGURO: Espera 1 segundo usando uma macro temporária em vez de scheduleEvent
+local ticksDeEspera = 0
+macro(100, function(macroEstrategica)
+    ticksDeEspera = ticksDeEspera + 1
+    if ticksDeEspera >= 10 then 
+        inicializarInterfaceSegura()
+        macroEstrategica.stop() -- Para essa macro de carregamento para sempre
+    end
+end)
 
--- EXECUÇÃO DA MACRO COM TRAVAS ULTRA RÍGIDAS DE PROTEÇÃO CONTRA CRASH
+-- MACRO PRINCIPAL DE ATAQUE (SÓ EXECUTA SE A INTERFACE ESTIVER PRONTA E REQUISITOS ACEITOS)
 macro(100, function()
-    if not config or not config.macroActive then return end
+    if not interfaceCarregada or not config or not config.macroActive then return end
     if isInPz and isInPz() then return end
 
     local localPlayer = g_game.getLocalPlayer()
