@@ -506,17 +506,15 @@ UIWidget
     enemyCaster.refreshList()
 end
 
--- CARREGADOR SEGURO: Espera 1 segundo usando uma macro temporária em vez de scheduleEvent
-local ticksDeEspera = 0
-macro(100, function(macroEstrategica)
-    ticksDeEspera = ticksDeEspera + 1
-    if ticksDeEspera >= 10 then 
-        inicializarInterfaceSegura()
-        macroEstrategica.stop() -- Para essa macro de carregamento para sempre
-    end
+-- CARREGADOR SEGURO UNIVERSAL: Roda uma única vez
+local inicializado = false
+macro(100, function()
+    if inicializado then return end
+    inicializarInterfaceSegura()
+    inicializado = true
 end)
 
--- MACRO PRINCIPAL DE ATAQUE (SÓ EXECUTA SE A INTERFACE ESTIVER PRONTA E REQUISITOS ACEITOS)
+-- MACRO PRINCIPAL DE ATAQUE
 macro(100, function()
     if not interfaceCarregada or not config or not config.macroActive then return end
     if isInPz and isInPz() then return end
