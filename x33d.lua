@@ -2,8 +2,13 @@ enemyCaster = {}
 enemyList = {}
 teamList = {}
 
+-- Garante que o jogo está 100% pronto antes de pegar nomes
+if not g_game or not g_game.isOnline() then return end
+
 local characterName = g_game.getCharacterName()
 local worldName = g_game.getWorldName()
+
+if not characterName or not worldName then return end
 
 storage.enemyConfig = storage.enemyConfig or {}
 storage.enemyConfig[worldName] = storage.enemyConfig[worldName] or {}
@@ -15,16 +20,14 @@ if config.teamMacroActive == nil then config.teamMacroActive = false end
 config.maxDistance = config.maxDistance or 6
 config.currentMode = config.currentMode or "Enemy Priority"
 
-
 config.enemies = config.enemies or {}
 config.team = config.team or {}
 
-
 local INIMIGOS_BASE = {
     "S A S K H E", "B L A S P H E M O U S", "N E A Rmx", "Demon Blessed",
-    "B O C H I T A", "A n G eL JeS", "D R A K A R", "HALL DEMON",
-    "S E P H I R O T H", "C R I S T I A N", "T u v i s i c a", "G aa P",
-    "And Do SuMiDaO", "D a N", "H A Y A M I", "J O S S E"
+    "B O C H I T A", "B R O K E N HeArT", "D R A K A R", "HALL DEMON",
+    "S E P H I R O T H", "C R I S T I A N", "J O S S E", "G aa P",
+    "And Do SuMiDaO", "D a N", "H A Y A M I", "T u v i s i c a"
 }
 
 local TEAM_BASE = {
@@ -33,12 +36,17 @@ local TEAM_BASE = {
     "P A K U R O", "S e r i a l K i l l e r"
 }
 
+-- Proteção no preenchimento das bases para evitar estouro de memória
 local function verificarBases()
     for i, v in ipairs(INIMIGOS_BASE) do
-        if config.enemies[v] == nil then config.enemies[v] = { enabled = true, index = i } end
+        if v and config.enemies[v] == nil then 
+            config.enemies[v] = { enabled = true, index = i } 
+        end
     end
     for i, v in ipairs(TEAM_BASE) do
-        if config.team[v] == nil then config.team[v] = { enabled = true, index = i } end
+        if v and config.team[v] == nil then 
+            config.team[v] = { enabled = true, index = i } 
+        end
     end
 end
 verificarBases()
@@ -54,8 +62,11 @@ end
 function getSortedList()
     local sorted = {}
     local t = getActiveTable()
+    if not t then return sorted end
     for name, data in pairs(t) do
-        table.insert(sorted, { name = name, data = data })
+        if name and data then
+            table.insert(sorted, { name = name, data = data })
+        end
     end
     table.sort(sorted, function(a, b) return (a.data.index or 0) < (b.data.index or 0) end)
     return sorted
@@ -65,18 +76,28 @@ local function updateInternalLists()
     enemyList = {}
     teamList = {}
     
+    if not config.enemies or not config.team then return end
+    
     local sortedEnemies = {}
-    for name, data in pairs(config.enemies) do table.insert(sortedEnemies, {name=name, data=data}) end
+    for name, data in pairs(config.enemies) do 
+        if name and data then table.insert(sortedEnemies, {name=name, data=data}) end 
+    end
     table.sort(sortedEnemies, function(a,b) return (a.data.index or 0) < (b.data.index or 0) end)
     for _, item in ipairs(sortedEnemies) do
-        if item.data.enabled then table.insert(enemyList, item.name:lower():trim()) end
+        if item.data and item.data.enabled and item.name then 
+            table.insert(enemyList, item.name:lower():trim()) 
+        end
     end
 
     local sortedTeam = {}
-    for name, data in pairs(config.team) do table.insert(sortedTeam, {name=name, data=data}) end
+    for name, data in pairs(config.team) do 
+        if name and data then table.insert(sortedTeam, {name=name, data=data}) end 
+    end
     table.sort(sortedTeam, function(a,b) return (a.data.index or 0) < (b.data.index or 0) end)
     for _, item in ipairs(sortedTeam) do
-        if item.data.enabled then table.insert(teamList, item.name:lower():trim()) end
+        if item.data and item.data.enabled and item.name then 
+            table.insert(teamList, item.name:lower():trim()) 
+        end
     end
 end
 
@@ -105,6 +126,7 @@ Panel
     text: Setup
 ]], mainTab)
 
+-- Removido a imagem de fundo flat que costuma dar crash se o cliente não possuir o arquivo
 enemyCaster.window = setupUI([[
 MainWindow
   id: enemyWindow
@@ -113,7 +135,6 @@ MainWindow
 
   Panel
     id: mainPanel
-    image-source: /images/ui/panel_flat
     anchors.fill: parent
     margin-bottom: 35
 
