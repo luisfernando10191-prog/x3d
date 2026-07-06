@@ -25,9 +25,9 @@ config.team = config.team or {}
 
 local INIMIGOS_BASE = {
     "S A S K H E", "B L A S P H E M O U S", "N E A Rmx", "Demon Blessed",
-    "B O C H I T A", "B R O K E N HeArT", "D R A K A R", "HALL DEMON",
-    "S E P H I R O T H", "C R I S T I A N", "J O S S E", "G aa P",
-    "And Do SuMiDaO", "D a N", "H A Y A M I", "T u v i s i c a"
+    "B O C H I T A", "A n G eL JeS", "D R A K A R", "HALL DEMON",
+    "S E P H I R O T H", "C R I S T I A N", "T u v i s i c a", "G aa P",
+    "And Do SuMiDaO", "D a N", "H A Y A M I", "J O S S E"
 }
 
 local TEAM_BASE = {
