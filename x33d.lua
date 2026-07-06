@@ -499,34 +499,52 @@ macro(100, function()
     if isInPz() then return end
 
     local pos = player:getPosition()
-    local myName = player:getName():lower():trim() 
-    local actualTarget, actualTargetHp = nil, nil
-    local allowedDistance = config.maxDistance or 6
+    if not pos then return end
     
+    local myName = player:getName():lower():trim() 
+    local allowedDistance = config.maxDistance or 6
     local listaAlvo = config.currentMode == "Enemy Priority" and enemyList or teamList
     
-    for _, targetName in ipairs(listaAlvo) do
+    -- Se a lista de alvos estiver vazia, não há o que processar
+    if #listaAlvo == 0 then return end
 
-        if targetName ~= myName then
-            for _, creature in ipairs(getSpectators(pos)) do
-                local specHp = creature:getHealthPercent()
-                local specName = creature:getName():lower():trim()
-                
-                if creature:isPlayer() and specHp and specHp > 0 then
-                    if specName == targetName then
-                        if getDistanceBetween(pos, creature:getPosition()) <= allowedDistance then
-                            if creature:canShoot() then
-                                if not actualTarget or actualTargetHp > specHp then
-                                    actualTarget, actualTargetHp = creature, specHp
-                                end
-                            end
-                        end
+    -- 1. Coleta os espectadores da tela uma ÚNICA vez
+    local spectators = getSpectators(pos)
+    if not spectators then return end
+
+    -- Map para busca rápida dos espectadores visíveis por nome formatado
+    local visiblePlayers = {}
+    for _, creature in ipairs(spectators) do
+        if creature:isPlayer() and creature:getHealthPercent() > 0 then
+            local specName = creature:getName():lower():trim()
+            if specName ~= myName then
+                visiblePlayers[specName] = creature
+            end
+        end
+    end
+
+    local actualTarget, actualTargetHp = nil, nil
+
+    -- 2. Varre a lista de alvos na ordem de prioridade correta
+    for _, targetName in ipairs(listaAlvo) do
+        local creature = visiblePlayers[targetName]
+        
+        if creature then
+            -- Verifica distância e se é possível atacar (canShoot)
+            if getDistanceBetween(pos, creature:getPosition()) <= allowedDistance then
+                if creature:canShoot() then
+                    local specHp = creature:getHealthPercent()
+                    
+                    -- Prioriza o jogador que tiver menos vida (mantendo a lógica original)
+                    if not actualTarget or actualTargetHp > specHp then
+                        actualTarget, actualTargetHp = creature, specHp
                     end
                 end
             end
         end
     end
     
+    -- 3. Ataca o alvo encontrado se já não estiver atacando ele
     if actualTarget and g_game.getAttackingCreature() ~= actualTarget then
         modules.game_interface.processMouseAction(nil, 2, pos, nil, actualTarget, actualTarget)
     end
