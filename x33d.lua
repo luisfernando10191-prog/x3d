@@ -9,11 +9,16 @@ local worldName = g_game.getWorldName()
 if not characterName or not worldName then return end
 
 -- ================================================================
--- LIMPEZA DE EXECUÇÕES ANTERIORES (evita widgets/macros duplicados)
+-- LIMPEZA DE EXECUÇÕES ANTERIORES
 -- ================================================================
 if enemyCaster.macroEvent then
     pcall(function() removeEvent(enemyCaster.macroEvent) end)
     enemyCaster.macroEvent = nil
+end
+
+if enemyCaster.delayedLoadEvent then
+    pcall(function() removeEvent(enemyCaster.delayedLoadEvent) end)
+    enemyCaster.delayedLoadEvent = nil
 end
 
 if enemyCaster.window then
@@ -26,7 +31,7 @@ if enemyCaster.uiPanel then
     enemyCaster.uiPanel = nil
 end
 
--- Inicialização Limpa e Segura do Storage
+-- Inicialização do Storage
 storage.enemyConfig = storage.enemyConfig or {}
 storage.enemyConfig[worldName] = storage.enemyConfig[worldName] or {}
 storage.enemyConfig[worldName][characterName] = storage.enemyConfig[worldName][characterName] or {}
@@ -104,7 +109,7 @@ local function updateInternalLists()
 end
 
 -- ================================================================
--- INICIALIZAÇÃO VIA FUNÇÃO SEGURO COM DELAY NATIVO DO BOT
+-- CARREGAMENTO DA INTERFACE E MACROS
 -- ================================================================
 local function carregarTudo()
     local corText = '#FFFFFF'
@@ -588,11 +593,11 @@ UIWidget
     end)
 end
 
--- Usa uma macro de carregamento temporária (Padrão VBot/CandyBot) para aplicar o delay de 300ms de forma nativa e segura
-local tempoInicial = os.mtime()
-macro(50, function(m)
-    if os.mtime() - tempoInicial >= 300 then
-        carregarTudo()
-        m.stop()
+-- Usa o cycleEvent nativo do bot para aguardar 300ms de forma segura e injetar o script sem crashar
+enemyCaster.delayedLoadEvent = cycleEvent(function()
+    carregarTudo()
+    if enemyCaster.delayedLoadEvent then
+        removeEvent(enemyCaster.delayedLoadEvent)
+        enemyCaster.delayedLoadEvent = nil
     end
-end)
+end, 300)
